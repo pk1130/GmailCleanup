@@ -32,21 +32,21 @@ def trash_emails_before_date_from_sender(obj, days, folder):
     msgs = int(msgs[0])
     print(f"- Found a total of {msgs} messages in {folder}.")
     typ, data = obj.search(None, 'ALL')
-    senders = []
-    for i in data[0].split():
-        # fetch the email message by ID
-        res, msg = obj.fetch(i, "(RFC822)")
-        for response in msg:
-            if isinstance(response, tuple):
-                # parse a bytes email into a message object
-                msg = email.message_from_string(response[1].decode("utf-8"))
-                # add name of email sender to sender list
-                senders.append(msg.get("From"))
-    print(senders)
-            
+    sender = "insert sender here"
     before = (dt.date.today() - dt.timedelta(days)).strftime("%d-%b-%Y")
-    status, data = obj.search(None, f"(UNSEEN FROM Facebook BEFORE {before})")
-    print(len([int(s) for s in data[0].split() if s.isdigit()]))
+    status, data = obj.search(None, f"(UNSEEN FROM {sender} BEFORE {before})")
+    total = len([int(s) for s in data[0].split() if s.isdigit()])
+    emails = data[0].split()
+    if len(emails) == 0:
+        print("No emails found! Done!")
+    else:
+        print(f"[FOUND] {total} emails found from {sender} before {before}, deleting ...")
+        obj.store("1:{0}".format(int(emails[-1])), '+X-GM-LABELS', '\\Trash') #move to trash
+        print(f"[DELETED] Deleted {total} mails from {sender}.")
+    print("Emptying Trash & Expunge...")
+    obj.select('[Gmail]/Trash')  # select all trash
+    obj.store("1:*", '+FLAGS', '\\Deleted')  #Flag all Trash as Deleted
+    obj.expunge()  # not need if auto-expunge enabled
 
 def disconnect(conn):
     """Function to disconnect from Gmail and close IMAP client.
@@ -64,5 +64,5 @@ def disconnect(conn):
 
 if __name__ == '__main__':
     gmail = connect_to_gmail()
-    trash_emails_before_date_from_sender(gmail, 365, '"INBOX"')
+    trash_emails_before_date_from_sender(gmail, 365, '"INBOX"') #example - 365 days/1 year
     disconnect(gmail)
